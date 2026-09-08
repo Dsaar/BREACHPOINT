@@ -1,5 +1,371 @@
 @import 'tailwindcss';
-*{box-sizing:border-box}body{margin:0;background:#101b20;color:#edf1ef;font-family:Arial,Helvetica,sans-serif}button,a{-webkit-tap-highlight-color:transparent}main,.world{position:fixed;inset:0}.world canvas{display:block}.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 60% 45%,transparent 35%,#091116aa 100%)}header{position:absolute;left:42px;right:42px;top:30px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff24;padding-bottom:23px}header b{letter-spacing:3px;font-size:23px}header b span{color:#bcce51}header div{font-size:12px;letter-spacing:4px;color:#c5cfd0}header em{margin:0 20px;color:#bcce51}header small{color:#bdd059;font:12px monospace}.objective{position:absolute;top:125px;left:42px;border-left:2px solid #c3d754;padding-left:15px}label{font:11px monospace;letter-spacing:2px;color:#bfcdce}.objective h3{font-size:18px;letter-spacing:3px;margin:8px 0}.objective p{font-size:13px;color:#b3c0c5;margin:0}.menu{position:absolute;left:9%;top:28%;width:600px}.menu h1{font-size:clamp(50px,5.8vw,88px);letter-spacing:-5px;line-height:.94;margin:22px 0;font-weight:900}.menu h1 span{color:#c2d654}.menu p{color:#bac4c7;font-size:16px;line-height:1.8;margin:25px 0}.menu button{border:0;background:#c2d654;color:#18241e;padding:20px 24px;width:340px;display:flex;justify-content:space-between;font-size:13px;font-weight:800;letter-spacing:1px;cursor:pointer}.menu button:hover{background:#d7ee69}.menu button:disabled{opacity:.6;cursor:wait}.controls{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:24px;max-width:430px;font:11px monospace}.controls span{color:#d9e1df}.controls i{font-style:normal;color:#809196;margin-left:7px;font-size:10px}.crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font:22px monospace;color:#ffffffe0;pointer-events:none}footer{position:absolute;bottom:46px;left:42px;right:42px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}footer strong{display:block;font:38px monospace;margin-top:8px}footer strong small{font-size:11px;color:#acb9b9}footer .state{font-size:18px;letter-spacing:2px}.healthbar{height:3px;background:#c2d654;width:160px;margin-top:8px}.sector{font:11px monospace;letter-spacing:2px;color:#a5b4b7}.sector span{color:#c2d654;margin:0 12px}.credit{position:absolute;bottom:12px;left:42px;font:10px monospace;color:#899b9f;text-decoration:none}@media(max-width:700px){header{left:20px;right:20px}header div{display:none}.objective{left:20px}.menu{left:24px;top:30%;width:90%}.menu h1{letter-spacing:-2px}.sector{display:none}footer{left:20px;right:20px}.menu button{width:300px}}
-.notice{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);font:12px monospace;color:#c2d654;pointer-events:none;text-align:center}.menu .controls{max-width:480px}.menu{top:29%}.menu p{margin:20px 0}.menu h1{margin:16px 0}.menu .controls{margin-top:18px}header, .objective{pointer-events:none}
-.damage-overlay{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 160px 35px #c22b27;opacity:var(--damage,0);transition:opacity .08s}.world[style*="--damage"]:has(+.damage-overlay){}.world[data-hit="true"]~.crosshair{transform:translate(-50%,-50%) rotate(45deg);color:#c7e56c}.crosshair{width:20px;height:20px;color:#f3f9ea}.crosshair span{position:absolute;background:currentColor}.crosshair span:nth-child(1){width:1px;height:5px;left:9px;top:0}.crosshair span:nth-child(2){width:1px;height:5px;left:9px;bottom:0}.crosshair span:nth-child(3){height:1px;width:5px;left:0;top:9px}.crosshair span:nth-child(4){height:1px;width:5px;right:0;top:9px}
-.menu{filter:drop-shadow(0 2px 16px #09181a)}.menu label,.menu p,.controls span{color:#d0dcdd}.menu .controls i{color:#a9babc}.menu{padding-bottom:30px}.vignette{background:radial-gradient(ellipse at 62% 45%,transparent 30%,#091116b0 100%)}main:has(.menu) .vignette{background:linear-gradient(90deg,#071619ed 0%,#08171ac9 32%,#08171a28 65%,#08171a55 100%)}main:has(.menu) footer{opacity:.5}.menu{top:28%}.menu h1{font-size:clamp(50px,5.4vw,82px)}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #101b20;
+  color: #edf1ef;
+  font-family: Arial, Helvetica, sans-serif;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+main,
+.world {
+  position: fixed;
+  inset: 0;
+}
+.world canvas {
+  display: block;
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 60% 45%,
+    transparent 35%,
+    #091116aa 100%
+  );
+}
+header {
+  position: absolute;
+  left: 42px;
+  right: 42px;
+  top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ffffff24;
+  padding-bottom: 23px;
+}
+header b {
+  letter-spacing: 3px;
+  font-size: 23px;
+}
+header b span {
+  color: #bcce51;
+}
+header div {
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: #c5cfd0;
+}
+header em {
+  margin: 0 20px;
+  color: #bcce51;
+}
+header small {
+  color: #bdd059;
+  font: 12px monospace;
+}
+.objective {
+  position: absolute;
+  top: 125px;
+  left: 42px;
+  border-left: 2px solid #c3d754;
+  padding-left: 15px;
+}
+.eyebrow {
+  font: 11px monospace;
+  letter-spacing: 2px;
+  color: #bfcdce;
+}
+.objective h3 {
+  font-size: 18px;
+  letter-spacing: 3px;
+  margin: 8px 0;
+}
+.objective p {
+  font-size: 13px;
+  color: #b3c0c5;
+  margin: 0;
+}
+.menu {
+  position: absolute;
+  left: 9%;
+  top: 28%;
+  width: 600px;
+}
+.menu h1 {
+  font-size: clamp(50px, 5.8vw, 88px);
+  letter-spacing: -5px;
+  line-height: 0.94;
+  margin: 22px 0;
+  font-weight: 900;
+}
+.menu h1 span {
+  color: #c2d654;
+}
+.menu p {
+  color: #bac4c7;
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 25px 0;
+}
+.menu button {
+  border: 0;
+  background: #c2d654;
+  color: #18241e;
+  padding: 20px 24px;
+  width: 340px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.menu button:hover {
+  background: #d7ee69;
+}
+.menu button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin-top: 24px;
+  max-width: 430px;
+  font: 11px monospace;
+}
+.controls span {
+  color: #d9e1df;
+}
+.controls i {
+  font-style: normal;
+  color: #809196;
+  margin-left: 7px;
+  font-size: 10px;
+}
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font: 22px monospace;
+  color: #ffffffe0;
+  pointer-events: none;
+}
+footer {
+  position: absolute;
+  bottom: 46px;
+  left: 42px;
+  right: 42px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+footer strong {
+  display: block;
+  font: 38px monospace;
+  margin-top: 8px;
+}
+footer strong small {
+  font-size: 11px;
+  color: #acb9b9;
+}
+footer .state {
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+.healthbar {
+  height: 3px;
+  background: #c2d654;
+  width: 160px;
+  margin-top: 8px;
+}
+.sector {
+  font: 11px monospace;
+  letter-spacing: 2px;
+  color: #a5b4b7;
+}
+.sector span {
+  color: #c2d654;
+  margin: 0 12px;
+}
+.credit {
+  position: absolute;
+  bottom: 12px;
+  left: 42px;
+  font: 10px monospace;
+  color: #899b9f;
+  text-decoration: none;
+}
+@media (max-width: 700px) {
+  header {
+    left: 20px;
+    right: 20px;
+  }
+  header div {
+    display: none;
+  }
+  .objective {
+    left: 20px;
+  }
+  .menu {
+    left: 24px;
+    top: 30%;
+    width: 90%;
+  }
+  .menu h1 {
+    letter-spacing: -2px;
+  }
+  .sector {
+    display: none;
+  }
+  footer {
+    left: 20px;
+    right: 20px;
+  }
+  .menu button {
+    width: 300px;
+  }
+}
+.notice {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 12px monospace;
+  color: #c2d654;
+  pointer-events: none;
+  text-align: center;
+}
+.menu .controls {
+  max-width: 480px;
+}
+.menu {
+  top: 29%;
+}
+.menu p {
+  margin: 20px 0;
+}
+.menu h1 {
+  margin: 16px 0;
+}
+.menu .controls {
+  margin-top: 18px;
+}
+header,
+.objective {
+  pointer-events: none;
+}
+.damage-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 160px 35px #c22b27;
+  opacity: var(--damage, 0);
+  transition: opacity 0.08s;
+}
+.world[style*='--damage']:has(+ .damage-overlay) {
+}
+.world[data-hit='true'] ~ .crosshair {
+  transform: translate(-50%, -50%) rotate(45deg);
+  color: #c7e56c;
+}
+.crosshair {
+  width: 20px;
+  height: 20px;
+  color: #f3f9ea;
+}
+.crosshair span {
+  position: absolute;
+  background: currentColor;
+}
+.crosshair span:nth-child(1) {
+  width: 1px;
+  height: 5px;
+  left: 9px;
+  top: 0;
+}
+.crosshair span:nth-child(2) {
+  width: 1px;
+  height: 5px;
+  left: 9px;
+  bottom: 0;
+}
+.crosshair span:nth-child(3) {
+  height: 1px;
+  width: 5px;
+  left: 0;
+  top: 9px;
+}
+.crosshair span:nth-child(4) {
+  height: 1px;
+  width: 5px;
+  right: 0;
+  top: 9px;
+}
+.menu {
+  filter: drop-shadow(0 2px 16px #09181a);
+}
+.menu .eyebrow,
+.menu p,
+.controls span {
+  color: #d0dcdd;
+}
+.menu .controls i {
+  color: #a9babc;
+}
+.menu {
+  padding-bottom: 30px;
+}
+.vignette {
+  background: radial-gradient(
+    ellipse at 62% 45%,
+    transparent 30%,
+    #091116b0 100%
+  );
+}
+main:has(.menu) .vignette {
+  background: linear-gradient(
+    90deg,
+    #071619ed 0%,
+    #08171ac9 32%,
+    #08171a28 65%,
+    #08171a55 100%
+  );
+}
+main:has(.menu) footer {
+  opacity: 0.5;
+}
+.menu {
+  top: 28%;
+}
+.menu h1 {
+  font-size: clamp(50px, 5.4vw, 82px);
+}
+.validation {
+  position: absolute;
+  right: 20px;
+  top: 100px;
+  max-width: 560px;
+  max-height: 70vh;
+  overflow: auto;
+  background: #071416ed;
+  z-index: 10;
+  padding: 16px;
+  border: 1px solid #b7ce55;
+  font: 12px monospace;
+}
+.validation button {
+  background: #c2d654;
+  color: #152226;
+  padding: 12px;
+  cursor: pointer;
+}
+.validation pre {
+  white-space: pre-wrap;
+}
+main:has(.menu) .objective,
+main:has(.menu) footer,
+main:has(.menu) .notice {
+  display: none;
+}
