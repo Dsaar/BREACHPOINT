@@ -84,15 +84,17 @@ export default function Home() {
       <div ref={mount} className="world" />
       <div className="damage-overlay" />
       <div className="vignette" />
-      <header>
-        <b>
-          BREACH<span>POINT</span>
-        </b>
-        <div>
-          BLACK TIDE <em>/</em> OPERATIONS
-        </div>
-        <small>{s.fps} FPS</small>
-      </header>
+      {!s.active && (
+        <header>
+          <b>
+            BREACH<span>POINT</span>
+          </b>
+          <div>
+            BLACK TIDE <em>/</em> OPERATIONS
+          </div>
+          <small>{s.fps} FPS</small>
+        </header>
+      )}
       <div className="objective">
         <span className="eyebrow">OPERATION 01</span>
         <h3>BLACK TIDE</h3>
