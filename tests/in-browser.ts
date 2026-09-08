@@ -111,6 +111,60 @@ export function validateGame(g: Game) {
           : 'Desert Eagle: 28 textured source meshes',
       );
     }
+    for (const enemy of g.enemies!.enemies) {
+      const held = enemy.weapon!;
+      check(
+        !!held && /RightHand\d/.test(held.socket.parent!.name),
+        'Enemy CAR attached to right-hand bone',
+      );
+      let weaponMeshes = 0;
+      held.socket.getObjectByName('Enemy CAR SMG')!.traverse((node) => {
+        if ((node as THREE.Mesh).isMesh) weaponMeshes++;
+      });
+      check(weaponMeshes === 11, 'Enemy reuses all 11 CAR source meshes');
+      const local = held.socket.matrix.clone();
+      for (const state of ['Idle', 'Walk']) {
+        enemy.controller.setState(state);
+        enemy.controller.mixer.update(0.3);
+        enemy.model.updateMatrixWorld(true);
+        const relative = held.socket
+          .parent!.matrixWorld.clone()
+          .invert()
+          .multiply(held.socket.matrixWorld);
+        check(
+          relative.elements.every(
+            (v, i) => Math.abs(v - local.elements[i]) < 1e-5,
+          ),
+          `Enemy hand attachment during ${state}`,
+        );
+      }
+    }
+    const enemies = g.enemies!;
+    const shotCallback = enemies.onShot;
+    const enemyObstacles = enemies.obstacles;
+    let muzzleShot = false;
+    enemies.onShot = (from) => {
+      muzzleShot ||= enemies.enemies.some(
+        (enemy) =>
+          from.distanceTo(
+            enemy.weapon!.muzzle.getWorldPosition(new THREE.Vector3()),
+          ) < 0.0001 && enemy.weapon!.muzzle.visible,
+      );
+    };
+    try {
+      enemies.obstacles = [];
+      for (const enemy of enemies.enemies) {
+        enemy.shot = -1;
+        enemy.reaction = 2;
+        enemy.sightTimer = 0;
+      }
+      enemies.update(0.016, new THREE.Vector3(0, 0, 5), true, () => {});
+      check(muzzleShot, 'Enemy combat emits tracer and flash at CAR muzzle');
+    } finally {
+      enemies.onShot = shotCallback;
+      enemies.obstacles = enemyObstacles;
+      enemies.reset();
+    }
     const arms = g.weapon.arms!;
     check(
       !!arms && arms.socket.parent === arms.right,

@@ -21,6 +21,12 @@ export type Enemy = {
   visible: boolean;
   sightTimer: number;
   beacon: THREE.Mesh;
+  weapon?: {
+    socket: THREE.Group;
+    muzzle: THREE.Mesh;
+    heading: number;
+    flashTime: number;
+  };
 };
 export class Enemies {
   enemies: Enemy[] = [];
@@ -39,6 +45,7 @@ export class Enemies {
     clips: THREE.AnimationClip[],
     public obstacles: Obstacle[],
     public targets: THREE.Object3D[],
+    weaponModel?: THREE.Object3D,
   ) {
     for (let z = 0; z < 45; z++)
       for (let x = 0; x < 49; x++)
@@ -107,7 +114,80 @@ export class Enemies {
         beacon,
       });
       controller.update(0);
+      if (weaponModel)
+        this.equip(this.enemies[this.enemies.length - 1], weaponModel);
     }
+  }
+  private equip(enemy: Enemy, source: THREE.Object3D) {
+    let hand: THREE.Object3D | undefined, support: THREE.Object3D | undefined;
+    enemy.model.traverse((node) => {
+      if (/RightHand\d/.test(node.name)) hand = node;
+      if (/LeftHand\d/.test(node.name)) support = node;
+    });
+    if (!hand || !support)
+      throw new Error('Enemy Soldier is missing weapon grip bones');
+    enemy.model.updateMatrixWorld(true);
+    const grip = hand.getWorldPosition(new THREE.Vector3());
+    const forward = support.getWorldPosition(new THREE.Vector3()).sub(grip);
+    forward.y = 0;
+    forward.normalize();
+    const localForward = forward
+      .clone()
+      .applyQuaternion(
+        enemy.model.getWorldQuaternion(new THREE.Quaternion()).invert(),
+      );
+    const socket = new THREE.Group();
+    socket.name = 'Enemy CAR right-hand socket';
+    const orientation = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 0, -1),
+      forward,
+    );
+    const placement = new THREE.Matrix4().compose(
+      grip
+        .clone()
+        .add(new THREE.Vector3(0, 0.105, 0))
+        .addScaledVector(forward, -0.005),
+      orientation,
+      new THREE.Vector3(0.85, 0.85, 0.85),
+    );
+    hand.add(socket);
+    socket.matrix.copy(hand.matrixWorld).invert().multiply(placement);
+    socket.matrix.decompose(socket.position, socket.quaternion, socket.scale);
+    const model = source.clone(true);
+    model.name = 'Enemy CAR SMG';
+    model.visible = true;
+    model.traverse((node) => {
+      node.layers.set(0);
+      if ((node as THREE.Mesh).isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+        node.frustumCulled = true;
+        // The Soldier remains the damage target; weapon geometry is presentation.
+        node.raycast = () => {};
+      }
+    });
+    socket.add(model);
+    const muzzle = new THREE.Mesh(
+      new THREE.ConeGeometry(0.045, 0.18, 5),
+      new THREE.MeshBasicMaterial({
+        color: '#ffd78c',
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+      }),
+    );
+    muzzle.name = 'CAR muzzle flash';
+    muzzle.rotation.x = -Math.PI / 2;
+    muzzle.position.set(0, 0, -0.675);
+    muzzle.visible = false;
+    muzzle.raycast = () => {};
+    socket.add(muzzle);
+    enemy.weapon = {
+      socket,
+      muzzle,
+      heading: Math.atan2(localForward.x, localForward.z),
+      flashTime: 0,
+    };
   }
   get alive() {
     return this.enemies.filter((e) => e.health > 0).length;
@@ -135,6 +215,10 @@ export class Enemies {
       e.death = 0;
       e.model.rotation.set(0, Math.PI, 0);
       e.beacon.visible = true;
+      if (e.weapon) {
+        e.weapon.flashTime = 0;
+        e.weapon.muzzle.visible = false;
+      }
       e.controller.update(0);
     }
   }
@@ -246,6 +330,10 @@ export class Enemies {
     this.aim.copy(playerPosition);
     this.aim.y += 1.25;
     for (const e of this.enemies) {
+      if (e.weapon) {
+        e.weapon.flashTime = Math.max(0, e.weapon.flashTime - dt);
+        e.weapon.muzzle.visible = e.health > 0 && e.weapon.flashTime > 0;
+      }
       if (e.health <= 0) {
         e.death = Math.min(1, e.death + dt * 1.7);
         e.model.rotation.x = -e.death * Math.PI * 0.48;
@@ -357,7 +445,8 @@ export class Enemies {
         this.direction.subVectors(playerPosition, e.position);
         this.rotation.setFromAxisAngle(
           THREE.Object3D.DEFAULT_UP,
-          Math.atan2(this.direction.x, this.direction.z),
+          Math.atan2(this.direction.x, this.direction.z) -
+            (e.weapon?.heading ?? 0),
         );
         e.model.quaternion.slerp(this.rotation, 1 - Math.exp(-8 * dt));
         if (e.reaction > 0.9 && e.shot <= 0 && this.clear(this.eye, this.aim)) {
@@ -368,7 +457,16 @@ export class Enemies {
             end.add(
               new THREE.Vector3((Math.random() < 0.5 ? -1 : 1) * 1.2, 0.5, 0),
             );
-          this.onShot?.(this.eye.clone(), end);
+          e.model.updateMatrixWorld(true);
+          const origin = e.weapon
+            ? e.weapon.muzzle.getWorldPosition(new THREE.Vector3())
+            : this.eye.clone();
+          if (!this.clear(origin, end)) continue;
+          if (e.weapon) {
+            e.weapon.flashTime = 0.075;
+            e.weapon.muzzle.visible = true;
+          }
+          this.onShot?.(origin, end);
           if (hit) onPlayerDamage(7);
         }
       }
@@ -423,6 +521,7 @@ export class Enemies {
       e.state = 'dead';
       e.deathY = e.model.position.y;
       e.beacon.visible = false;
+      if (e.weapon) e.weapon.muzzle.visible = false;
       e.controller.mixer.timeScale = 0;
     } else {
       e.state = 'cover';

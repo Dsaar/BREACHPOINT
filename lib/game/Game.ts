@@ -243,6 +243,7 @@ export class Game {
         clips,
         this.obstacles,
         this.targets,
+        this.weapon.models[0],
       );
       model.traverse((o) => {
         const m = o as THREE.Mesh;
