@@ -214,7 +214,10 @@ export class Game {
 
   async load() {
     try {
-      const gltf = await new GLTFLoader().loadAsync('/models/Soldier.glb');
+      const [gltf] = await Promise.all([
+        new GLTFLoader().loadAsync('/models/Soldier.glb'),
+        this.weapon.load(),
+      ]);
       if (this.disposed) return;
       if (!gltf.animations.length)
         throw new Error('Soldier has no animation clips');
@@ -259,6 +262,22 @@ export class Game {
       this.player.position.set(1.8, 0, 8.7);
       this.player.model.rotation.y = 0.25;
       this.camera.layers.enable(1);
+      // Upload both cached weapon textures and compile their materials before play.
+      const textures = new Set<THREE.Texture>();
+      this.weapon.group.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.material)
+          for (const material of Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material])
+            for (const value of Object.values(material))
+              if (value instanceof THREE.Texture) textures.add(value);
+      });
+      textures.forEach((texture) => this.renderer.initTexture(texture));
+      this.weapon.group.visible = true;
+      this.renderer.compile(this.scene, this.camera);
+      this.weapon.group.visible = false;
+      if (this.disposed) return;
       this.loaded = true;
       this.report({
         loaded: true,
@@ -266,8 +285,11 @@ export class Game {
         status: 'READY TO DEPLOY',
       });
     } catch (e) {
+      if (this.disposed) return;
       console.error(e);
-      this.report({ error: 'Soldier asset failed to load. Reload to retry.' });
+      this.report({
+        error: 'An operator or weapon asset failed to load. Reload to retry.',
+      });
     }
   }
   async start() {
@@ -308,6 +330,13 @@ export class Game {
       if (e.code === 'KeyR') this.weapon.reload();
       if (e.code === 'Digit1') this.weapon.switch(0);
       if (e.code === 'Digit2') this.weapon.switch(1);
+      if (['KeyR', 'Digit1', 'Digit2'].includes(e.code))
+        this.report({
+          weapon: this.weapon.name,
+          ammo: this.weapon.ammo,
+          reserve: this.weapon.reserve,
+          reloading: this.weapon.reloadTime > 0,
+        });
       if (e.code === 'KeyM') this.weapon.muted = !this.weapon.muted;
     }
     if (e.code === 'Escape') {
@@ -446,7 +475,16 @@ export class Game {
       barrel.visible = true;
       if (!this.targets.includes(barrel)) this.targets.push(barrel);
     }
-    this.report({ health: 100, kills: 0, ended: '', notice: '' });
+    this.report({
+      health: 100,
+      kills: 0,
+      ended: '',
+      notice: '',
+      weapon: this.weapon.name,
+      ammo: this.weapon.ammo,
+      reserve: this.weapon.reserve,
+      reloading: false,
+    });
   }
   explode(barrel: THREE.Mesh) {
     if (!barrel.visible) return;
@@ -612,6 +650,7 @@ export class Game {
   };
   dispose() {
     this.disposed = true;
+    this.weapon.dispose();
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.resize);
     document.removeEventListener('keydown', this.keydown);

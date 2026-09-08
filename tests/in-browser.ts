@@ -12,6 +12,7 @@ export function validateGame(g: Game) {
   const deployed = g.deployed;
   const muted = g.weapon.muted;
   try {
+    g.reset();
     g.active = false;
     p.enabled = true;
     p.obstacles = [];
@@ -86,10 +87,34 @@ export function validateGame(g: Game) {
     check(p.grounded && p.position.y === 0, 'Gravity and ground detection');
     p.obstacles = obstacles;
     p.enabled = false;
+    check(
+      g.weapon.ready && g.weapon.models.length === 2,
+      'Both uploaded weapon GLBs are loaded',
+    );
+    for (const [index, mount] of g.weapon.models.entries()) {
+      let meshes = 0,
+        textured = 0;
+      mount.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh) {
+          meshes++;
+          for (const mat of Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material])
+            if ((mat as THREE.MeshStandardMaterial).map) textured++;
+        }
+      });
+      check(
+        meshes === (index === 0 ? 11 : 28) && textured === meshes,
+        index === 0
+          ? 'CAR: 11 textured source meshes'
+          : 'Desert Eagle: 28 textured source meshes',
+      );
+    }
     g.weapon.muted = true;
     g.weapon.reloadTime = 0;
     g.weapon.cooldown = 0;
-    g.weapon.index = 0;
+    g.weapon.switch(0);
     g.weapon.magazines = [30, 12];
     g.weapon.reserves = [150, 60];
     check(
@@ -104,7 +129,17 @@ export function validateGame(g: Game) {
       'Reload transfers reserve ammunition',
     );
     g.weapon.switch(1);
-    check(g.weapon.ammo === 12, 'Weapon switching');
+    check(
+      g.weapon.ammo === 12 &&
+        !g.weapon.models[0].visible &&
+        g.weapon.models[1].visible,
+      'Weapon switching displays Desert Eagle',
+    );
+    g.weapon.switch(0);
+    check(
+      g.weapon.models[0].visible && !g.weapon.models[1].visible,
+      'Cached CAR model restored on switch',
+    );
     g.enemies!.reset();
     const enemy = g.enemies!.enemies[0];
     let hit = false;

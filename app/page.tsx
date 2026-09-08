@@ -137,7 +137,7 @@ export default function Home() {
           >
             {s.error ||
               (!s.loaded
-                ? 'LOADING OPERATOR…'
+                ? 'LOADING EQUIPMENT…'
                 : s.ended
                   ? 'REDEPLOY'
                   : s.notice
@@ -204,7 +204,7 @@ export default function Home() {
           SECTOR 07 <span>•</span> NORTH DOCK
         </div>
         <div>
-          <span className="eyebrow">{s.weapon || 'VXR-30 / CARBINE'}</span>
+          <span className="eyebrow">{s.weapon || 'CAR / SMG'}</span>
           <strong>
             {String(s.ammo ?? 30).padStart(2, '0')}{' '}
             <small>/ {s.reserve ?? 150}</small>

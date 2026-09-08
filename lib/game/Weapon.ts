@@ -1,10 +1,19 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export class Weapon {
   group = new THREE.Group();
   flash = new THREE.Group();
   light = new THREE.PointLight('#ffbd63', 0, 4);
   index = 0;
+  models: THREE.Group[] = [];
+  ready = false;
+  disposed = false;
+  private loadPromise?: Promise<void>;
+  private targetPosition = new THREE.Vector3();
+  private muzzleOffsets = [
+    new THREE.Vector3(0, 0, -0.675),
+    new THREE.Vector3(0, 0, -0.305),
+  ];
   magazines = [30, 12];
   reserves = [150, 60];
   cooldown = 0;
@@ -25,105 +34,10 @@ export class Weapon {
     return this.reserves[this.index];
   }
   get name() {
-    return this.index === 0 ? 'VXR-30 / CARBINE' : 'K-12 / SIDEARM';
+    return this.index === 0 ? 'CAR / SMG' : 'DESERT EAGLE / SIDEARM';
   }
   constructor(public camera: THREE.Camera) {
     camera.add(this.group);
-    this.construct();
-  }
-  construct() {
-    const materials = new Set<THREE.Material>();
-    this.group.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material)
-        for (const mat of Array.isArray(mesh.material)
-          ? mesh.material
-          : [mesh.material])
-          materials.add(mat);
-    });
-    materials.forEach((m) => m.dispose());
-    this.group.clear();
-    const dark = new THREE.MeshStandardMaterial({
-      color: '#202b30',
-      metalness: 0.45,
-      roughness: 0.4,
-    });
-    const trim = new THREE.MeshStandardMaterial({
-      color: '#63716b',
-      metalness: 0.5,
-      roughness: 0.45,
-    });
-    const rubber = new THREE.MeshStandardMaterial({
-      color: '#101618',
-      roughness: 0.95,
-    });
-    const lime = new THREE.MeshStandardMaterial({
-      color: '#bbd456',
-      emissive: '#57621b',
-      emissiveIntensity: 0.35,
-    });
-    const box = (
-      x: number,
-      y: number,
-      z: number,
-      w: number,
-      h: number,
-      d: number,
-      mat = dark,
-    ) => {
-      const m = new THREE.Mesh(
-        new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.12),
-        mat,
-      );
-      m.position.set(x, y, z);
-      this.group.add(m);
-      return m;
-    };
-    const cylinder = (
-      x: number,
-      y: number,
-      z: number,
-      r: number,
-      len: number,
-      mat = dark,
-    ) => {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
-      m.rotation.x = Math.PI / 2;
-      m.position.set(x, y, z);
-      this.group.add(m);
-      return m;
-    };
-    if (this.index === 0) {
-      box(0, 0, 0, 0.115, 0.14, 0.43);
-      box(0, 0.01, -0.36, 0.1, 0.11, 0.35, trim);
-      box(0, -0.04, 0.29, 0.1, 0.16, 0.24, rubber);
-      box(0, -0.035, 0.4, 0.14, 0.2, 0.08, trim);
-      box(0, -0.15, 0.02, 0.08, 0.21, 0.11, rubber).rotation.x = -0.23;
-      box(0, -0.17, -0.14, 0.07, 0.25, 0.12, trim).rotation.x = 0.16;
-      cylinder(0, 0.015, -0.64, 0.026, 0.28);
-      cylinder(0, 0.015, -0.79, 0.034, 0.08);
-      box(0, 0.095, -0.08, 0.085, 0.04, 0.59);
-      for (let i = 0; i < 14; i++)
-        box(0, 0.12, 0.13 - i * 0.038, 0.11, 0.016, 0.016, trim);
-      for (let i = 0; i < 6; i++) {
-        box(0.054, 0.012, -0.23 - i * 0.042, 0.008, 0.05, 0.019, rubber);
-        box(-0.054, 0.012, -0.23 - i * 0.042, 0.008, 0.05, 0.019, rubber);
-      }
-      box(0, 0.17, 0.035, 0.022, 0.08, 0.023, trim);
-      box(-0.033, 0.19, 0.035, 0.016, 0.07, 0.025);
-      box(0.033, 0.19, 0.035, 0.016, 0.07, 0.025);
-      box(0, 0.226, 0.035, 0.075, 0.013, 0.025);
-      box(0, 0.164, -0.55, 0.012, 0.055, 0.02, lime);
-      box(0.061, 0, 0.075, 0.008, 0.035, 0.07, trim);
-      box(0.064, 0.031, -0.03, 0.012, 0.035, 0.038, lime);
-    } else {
-      box(0, 0.02, -0.08, 0.1, 0.115, 0.3, trim);
-      box(0, -0.11, 0.03, 0.085, 0.19, 0.1, rubber).rotation.x = -0.2;
-      box(0, 0.088, 0.02, 0.055, 0.02, 0.025);
-      box(0, 0.085, -0.2, 0.012, 0.025, 0.016, lime);
-      cylinder(0, 0.025, -0.255, 0.024, 0.07);
-    }
     this.flash = new THREE.Group();
     const flashMat = new THREE.MeshBasicMaterial({
       color: '#ffda8b',
@@ -137,17 +51,102 @@ export class Weapon {
       m.rotation.z = (i * Math.PI) / 3;
       this.flash.add(m);
     }
-    this.flash.position.set(0, 0.015, this.index === 0 ? -0.92 : -0.39);
+    this.flash.position.copy(this.muzzleOffsets[this.index]);
     this.group.add(this.flash);
-    this.flash.add(this.light);
+    this.light.position.copy(this.muzzleOffsets[this.index]);
+    this.group.add(this.light);
     this.flash.visible = false;
     this.group.position.set(0.24, -0.23, -0.44);
   }
+  load(): Promise<void> {
+    this.loadPromise ??= (async () => {
+      const results = await Promise.allSettled(
+        ['/models/CAR.glb', '/models/DesertEagle.glb'].map((path) =>
+          new GLTFLoader().loadAsync(path),
+        ),
+      );
+      if (
+        this.disposed ||
+        results.some((result) => result.status === 'rejected')
+      ) {
+        for (const result of results)
+          if (result.status === 'fulfilled') Weapon.release(result.value.scene);
+        if (!this.disposed)
+          throw new Error('Weapon model failed to load. Reload to retry.');
+        return;
+      }
+      results.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+        const model = result.value.scene;
+        model.name =
+          index === 0 ? 'CAR SMG — No.cccccc' : 'Desert Eagle — ELIZION';
+        if (index === 1)
+          model.traverse((node) => {
+            if (/^Bullet(?:Case)?_low/.test(node.name)) node.visible = false;
+          });
+        const mount = new THREE.Group();
+        mount.name = index === 0 ? 'CAR view model' : 'Desert Eagle view model';
+        mount.add(model);
+        mount.rotation.y = index === 0 ? -Math.PI / 2 : Math.PI;
+        mount.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(mount),
+          size = bounds.getSize(new THREE.Vector3()),
+          center = bounds.getCenter(new THREE.Vector3());
+        const scale = (index === 0 ? 0.82 : 0.3) / size.z;
+        // Authored bore heights, measured from the uploaded model's world-space barrel.
+        const boreHeight = index === 0 ? 24.939134 : 23.338537;
+        mount.scale.setScalar(scale);
+        mount.position.set(
+          -center.x * scale,
+          -boreHeight * scale,
+          (index === 0 ? -0.25 : -0.14) - center.z * scale,
+        );
+        mount.visible = index === this.index;
+        model.traverse((node) => {
+          if ((node as THREE.Mesh).isMesh) {
+            node.frustumCulled = false;
+          }
+        });
+        this.models.push(mount);
+        this.group.add(mount);
+      });
+      this.ready = true;
+    })();
+    return this.loadPromise;
+  }
+  private static release(root: THREE.Object3D) {
+    const materials = new Set<THREE.Material>(),
+      textures = new Set<THREE.Texture>();
+    root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      mesh.geometry?.dispose();
+      if (mesh.material)
+        for (const material of Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material])
+          materials.add(material);
+    });
+    for (const material of materials) {
+      for (const value of Object.values(material))
+        if (value instanceof THREE.Texture) textures.add(value);
+      material.dispose();
+    }
+    textures.forEach((texture) => texture.dispose());
+  }
+  dispose() {
+    this.disposed = true;
+    this.ready = false;
+  }
   switch(index: number) {
-    if (this.reloadTime || index === this.index) return;
+    if (this.reloadTime || index === this.index || (index !== 0 && index !== 1))
+      return;
     this.index = index;
     this.recoil = 0.15;
-    this.construct();
+    this.models.forEach((model, i) => {
+      model.visible = i === index;
+    });
+    this.flash.position.copy(this.muzzleOffsets[index]);
+    this.light.position.copy(this.muzzleOffsets[index]);
     this.sound('switch');
   }
   reload() {
@@ -233,9 +232,11 @@ export class Weapon {
       ? Math.sin(distance * 2.8) * 0.009
       : Math.sin(performance.now() * 0.0018) * 0.002;
     this.group.position.lerp(
-      new THREE.Vector3(
-        this.aim ? 0.025 : 0.24,
-        (this.aim ? -0.16 : -0.23) + bob - (this.reloadTime ? 0.17 : 0),
+      this.targetPosition.set(
+        this.aim ? 0 : 0.24,
+        (this.aim ? (this.index === 0 ? -0.06 : -0.032) : -0.23) +
+          bob -
+          (this.reloadTime ? 0.17 : 0),
         -0.44 + this.recoil,
       ),
       1 - Math.exp(-18 * dt),
