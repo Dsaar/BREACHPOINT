@@ -226,6 +226,7 @@ export class Game {
         .setFromObject(model)
         .getSize(new THREE.Vector3());
       model.scale.multiplyScalar(1.82 / size.y);
+      this.weapon.attachArms(model, gltf.animations[0]);
       model.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) {
           o.castShadow = true;

@@ -111,6 +111,81 @@ export function validateGame(g: Game) {
           : 'Desert Eagle: 28 textured source meshes',
       );
     }
+    const arms = g.weapon.arms!;
+    check(
+      !!arms && arms.socket.parent === arms.right,
+      'Weapon socket is parented to Soldier right-hand bone',
+    );
+    const armMeshes: THREE.SkinnedMesh[] = [];
+    arms.root.traverse((node) => {
+      if ((node as THREE.SkinnedMesh).isSkinnedMesh)
+        armMeshes.push(node as THREE.SkinnedMesh);
+    });
+    check(
+      armMeshes.length === 1,
+      'First-person rig renders only the Soldier arms mesh',
+    );
+    const mesh = armMeshes[0];
+    const indices = mesh.geometry.getAttribute('skinIndex');
+    const weights = mesh.geometry.getAttribute('skinWeight');
+    let isolated = true;
+    for (const vertex of mesh.geometry.index!.array)
+      for (let k = 0; k < 4; k++)
+        if (
+          weights.getComponent(vertex, k) > 0.001 &&
+          !/(Left|Right)(Shoulder|Arm|ForeArm|Hand)/.test(
+            mesh.skeleton.bones[indices.getComponent(vertex, k)].name,
+          )
+        )
+          isolated = false;
+    check(
+      isolated,
+      'Rendered arm triangles exclude torso, head and leg influences',
+    );
+    const cameraRotation = g.camera.rotation.clone();
+    const assembly = g.weapon.models[0].parent!;
+    const handRelative = () => {
+      g.camera.updateMatrixWorld(true);
+      return arms.right.matrixWorld
+        .clone()
+        .invert()
+        .multiply(assembly.matrixWorld);
+    };
+    const attached = handRelative();
+    for (const index of [0, 1, 0]) {
+      g.weapon.switch(index);
+      for (const pitch of [-1.4, 0, 1.4]) {
+        g.camera.rotation.set(pitch, 1.2, 0);
+        g.weapon.aim = true;
+        g.weapon.recoil = 0.12;
+        g.weapon.reloadTime = 0.8;
+        g.weapon.update(0.016, 4, true, true);
+        const current = handRelative();
+        check(
+          current.elements.every(
+            (v, i) => Math.abs(v - attached.elements[i]) < 1e-5,
+          ),
+          `Hand attachment: weapon ${index}, pitch ${pitch}, aim/recoil/reload/sprint`,
+        );
+        g.weapon.reloadTime = 0;
+      }
+      const wrist = arms.root.worldToLocal(
+        arms.left.getWorldPosition(new THREE.Vector3()),
+      );
+      check(
+        wrist.distanceTo(
+          new THREE.Vector3(
+            ...((index === 0
+              ? [-0.045, -0.075, -0.43]
+              : [-0.04, -0.14, -0.035]) as [number, number, number]),
+          ),
+        ) < 0.005,
+        `Support hand reaches weapon ${index} grip`,
+      );
+    }
+    g.camera.rotation.copy(cameraRotation);
+    g.weapon.aim = false;
+    g.weapon.recoil = 0;
     g.weapon.muted = true;
     g.weapon.reloadTime = 0;
     g.weapon.cooldown = 0;

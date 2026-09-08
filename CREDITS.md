@@ -6,7 +6,7 @@ Original model: https://sketchfab.com/3d-models/soldier-glb-3-0edc19e9d55040f6b1
 
 Licensed under **Creative Commons Attribution 4.0 (CC BY 4.0)**: https://creativecommons.org/licenses/by/4.0/
 
-Modifications: legacy specular/glossiness materials converted to metallic/roughness materials while retaining original diffuse textures, geometry, and skeleton. Embedded textures resized to at most 1024 pixels for download and GPU memory efficiency. Runtime scaling and first-person visibility layers applied. The supplied `mixamo.com` clip is used as Idle; Walk and Run are runtime-generated skeletal locomotion clips, not original uploaded animations. Enemy instances reuse the credited model. Original authorship remains with pierson3972.
+Modifications: legacy specular/glossiness materials converted to metallic/roughness materials while retaining original diffuse textures, geometry, and skeleton. Embedded textures resized to at most 1024 pixels for download and GPU memory efficiency. Runtime scaling and first-person visibility layers applied. The supplied `mixamo.com` clip is used as Idle; Walk and Run are runtime-generated skeletal locomotion clips, not original uploaded animations. Enemy instances reuse the credited model. The first-person view reuses its skinned arms/hands, materials, finger pose and skeleton; torso-connected shoulder triangles are cropped at runtime, arm bones are posed for each weapon, and a right-hand weapon socket is added. The source Soldier GLB is unchanged by this arm extraction. Original authorship remains with pierson3972.
 
 Environment, interface, weapon motion/effect integration, generated effects, and synthesized audio are original project work. Weapon model geometry and textures are credited below.
 

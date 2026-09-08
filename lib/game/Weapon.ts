@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FirstPersonArms } from './FirstPersonArms';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export class Weapon {
   group = new THREE.Group();
@@ -114,6 +115,14 @@ export class Weapon {
     })();
     return this.loadPromise;
   }
+  arms?: FirstPersonArms;
+  attachArms(source: THREE.Object3D, idle: THREE.AnimationClip) {
+    const assembly = new THREE.Group();
+    assembly.name = 'Held weapon assembly';
+    assembly.add(...this.models, this.flash, this.light);
+    this.arms = new FirstPersonArms(source, idle, assembly);
+    this.group.add(this.arms.root);
+  }
   private static release(root: THREE.Object3D) {
     const materials = new Set<THREE.Material>(),
       textures = new Set<THREE.Texture>();
@@ -134,6 +143,8 @@ export class Weapon {
     textures.forEach((texture) => texture.dispose());
   }
   dispose() {
+    this.arms?.mixer.stopAllAction();
+    if (this.arms) this.arms.mixer.uncacheRoot(this.arms.root);
     this.disposed = true;
     this.ready = false;
   }
@@ -141,6 +152,7 @@ export class Weapon {
     if (this.reloadTime || index === this.index || (index !== 0 && index !== 1))
       return;
     this.index = index;
+    this.arms?.pose(index);
     this.recoil = 0.15;
     this.models.forEach((model, i) => {
       model.visible = i === index;
