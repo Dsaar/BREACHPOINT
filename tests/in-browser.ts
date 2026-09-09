@@ -126,7 +126,27 @@ export function validateGame(g: Game) {
       for (const state of ['Idle', 'Walk']) {
         enemy.controller.setState(state);
         enemy.controller.mixer.update(0.3);
+        held.pose.update();
         enemy.model.updateMatrixWorld(true);
+        const supportGrip = held.socket.localToWorld(
+          new THREE.Vector3(-0.045, -0.075, -0.43),
+        );
+        check(
+          supportGrip.distanceTo(
+            held.pose.left.getWorldPosition(new THREE.Vector3()),
+          ) < 0.008,
+          `Enemy support hand meets fore-end during ${state}`,
+        );
+        const barrel = new THREE.Vector3(0, 0, -1).applyQuaternion(
+          held.socket.getWorldQuaternion(new THREE.Quaternion()),
+        );
+        const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(
+          enemy.model.getWorldQuaternion(new THREE.Quaternion()),
+        );
+        check(
+          barrel.dot(facing) > 0.995,
+          `Enemy rifle points forward without sideways cant during ${state}`,
+        );
         const relative = held.socket
           .parent!.matrixWorld.clone()
           .invert()
@@ -136,6 +156,25 @@ export function validateGame(g: Game) {
             (v, i) => Math.abs(v - local.elements[i]) < 1e-5,
           ),
           `Enemy hand attachment during ${state}`,
+        );
+      }
+    }
+    for (const enemy of g.enemies!.enemies) {
+      const held = enemy.weapon!;
+      for (const height of [-1, 1.3, 3.5]) {
+        enemy.controller.mixer.update(0.45);
+        const target = new THREE.Vector3(0, height, 4)
+          .applyQuaternion(enemy.model.quaternion)
+          .add(enemy.model.position);
+        held.pose.update(target);
+        const support = held.socket.localToWorld(
+          new THREE.Vector3(-0.045, -0.075, -0.43),
+        );
+        check(
+          support.distanceTo(
+            held.pose.left.getWorldPosition(new THREE.Vector3()),
+          ) < 0.008,
+          `Both-hand grip maintained aiming at height ${height}`,
         );
       }
     }
@@ -315,4 +354,26 @@ export function validateGame(g: Game) {
     }
     g.report({ active: false });
   }
+}
+
+/** Render close-up front/side views for inspecting the actual animated enemy rig. */
+export function inspectEnemyGrip(g: Game) {
+  const enemy = g.enemies!.enemies[0];
+  const views: string[] = [];
+  enemy.weapon!.pose.update();
+  const center = enemy.model
+    .getWorldPosition(new THREE.Vector3())
+    .add(new THREE.Vector3(0, 1.25, 0));
+  const facing = enemy.model.getWorldQuaternion(new THREE.Quaternion());
+  for (const offset of [
+    new THREE.Vector3(0.3, 0.2, 2),
+    new THREE.Vector3(1.8, 0.25, 0.6),
+  ]) {
+    const camera = new THREE.PerspectiveCamera(40, g.camera.aspect, 0.05, 150);
+    camera.position.copy(center).add(offset.applyQuaternion(facing));
+    camera.lookAt(center);
+    g.renderer.render(g.scene, camera);
+    views.push(g.renderer.domElement.toDataURL());
+  }
+  return views;
 }

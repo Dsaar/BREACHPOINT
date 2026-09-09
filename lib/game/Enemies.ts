@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EnemyWeaponPose } from './EnemyWeaponPose';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { CharacterController, type Obstacle } from './CharacterController';
 type State = 'patrol' | 'investigate' | 'combat' | 'cover' | 'dead';
@@ -24,7 +25,7 @@ export type Enemy = {
   weapon?: {
     socket: THREE.Group;
     muzzle: THREE.Mesh;
-    heading: number;
+    pose: EnemyWeaponPose;
     flashTime: number;
   };
 };
@@ -119,40 +120,9 @@ export class Enemies {
     }
   }
   private equip(enemy: Enemy, source: THREE.Object3D) {
-    let hand: THREE.Object3D | undefined, support: THREE.Object3D | undefined;
-    enemy.model.traverse((node) => {
-      if (/RightHand\d/.test(node.name)) hand = node;
-      if (/LeftHand\d/.test(node.name)) support = node;
-    });
-    if (!hand || !support)
-      throw new Error('Enemy Soldier is missing weapon grip bones');
-    enemy.model.updateMatrixWorld(true);
-    const grip = hand.getWorldPosition(new THREE.Vector3());
-    const forward = support.getWorldPosition(new THREE.Vector3()).sub(grip);
-    forward.y = 0;
-    forward.normalize();
-    const localForward = forward
-      .clone()
-      .applyQuaternion(
-        enemy.model.getWorldQuaternion(new THREE.Quaternion()).invert(),
-      );
     const socket = new THREE.Group();
     socket.name = 'Enemy CAR right-hand socket';
-    const orientation = new THREE.Quaternion().setFromUnitVectors(
-      new THREE.Vector3(0, 0, -1),
-      forward,
-    );
-    const placement = new THREE.Matrix4().compose(
-      grip
-        .clone()
-        .add(new THREE.Vector3(0, 0.105, 0))
-        .addScaledVector(forward, -0.005),
-      orientation,
-      new THREE.Vector3(0.85, 0.85, 0.85),
-    );
-    hand.add(socket);
-    socket.matrix.copy(hand.matrixWorld).invert().multiply(placement);
-    socket.matrix.decompose(socket.position, socket.quaternion, socket.scale);
+    const pose = new EnemyWeaponPose(enemy.model, socket);
     const model = source.clone(true);
     model.name = 'Enemy CAR SMG';
     model.visible = true;
@@ -185,7 +155,7 @@ export class Enemies {
     enemy.weapon = {
       socket,
       muzzle,
-      heading: Math.atan2(localForward.x, localForward.z),
+      pose,
       flashTime: 0,
     };
   }
@@ -220,6 +190,7 @@ export class Enemies {
         e.weapon.muzzle.visible = false;
       }
       e.controller.update(0);
+      e.weapon?.pose.update();
     }
   }
   alert(position: THREE.Vector3) {
@@ -441,14 +412,15 @@ export class Enemies {
       });
       if (Number.isFinite(footY))
         e.model.position.y += e.position.y + 0.085 - footY;
+      if (!(visible && e.state === 'combat')) e.weapon?.pose.update();
       if (visible && e.state === 'combat') {
         this.direction.subVectors(playerPosition, e.position);
         this.rotation.setFromAxisAngle(
           THREE.Object3D.DEFAULT_UP,
-          Math.atan2(this.direction.x, this.direction.z) -
-            (e.weapon?.heading ?? 0),
+          Math.atan2(this.direction.x, this.direction.z),
         );
         e.model.quaternion.slerp(this.rotation, 1 - Math.exp(-8 * dt));
+        e.weapon?.pose.update(this.aim);
         if (e.reaction > 0.9 && e.shot <= 0 && this.clear(this.eye, this.aim)) {
           e.shot = 0.95 + Math.random() * 0.65;
           const hit = Math.random() < Math.max(0.18, 0.64 - distance * 0.016);

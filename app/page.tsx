@@ -4,6 +4,7 @@ import { Game, type GameState } from '../lib/game/Game';
 export default function Home() {
   const mount = useRef<HTMLDivElement>(null);
   const game = useRef<Game | null>(null);
+  const [gripViews, setGripViews] = useState<string[]>([]);
   const [validation, setValidation] = useState<string>('');
   const [s, set] = useState<GameState>({
     loaded: false,
@@ -78,6 +79,24 @@ export default function Home() {
           >
             Run integration validation
           </button>
+          <button
+            disabled={!s.loaded}
+            onClick={async () => {
+              const { inspectEnemyGrip } = await import('../tests/in-browser');
+              setGripViews(inspectEnemyGrip(game.current!));
+            }}
+          >
+            Inspect enemy grip
+          </button>
+          {gripViews.map((src, i) => (
+            // oxlint-disable-next-line next/no-img-element -- QA snapshots are generated canvas data URLs.
+            <img
+              key={i}
+              src={src}
+              alt={`Enemy grip ${i === 0 ? 'front' : 'side'} view`}
+              style={{ width: 'min(70vw, 900px)', display: 'block' }}
+            />
+          ))}
           <pre>{validation}</pre>
         </aside>
       )}
