@@ -12,7 +12,8 @@
     "lint": "oxlint app lib/game scripts tests",
     "format": "oxfmt",
     "test": "node tests/character.mjs && node tests/weapon.mjs && node tests/enemies.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:vercel": "BREACHPOINT_STATIC_EXPORT=1 vinext build"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

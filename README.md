@@ -52,3 +52,11 @@ This is a playable vertical slice, not a commercial AAA game. It has one compact
 The most valuable next improvements are authored locomotion and weapon/hand animation, authored hand animation and recorded spatial audio, more level art, enemy perception/cover tuning, and profiling on several desktop GPUs.
 
 First-person arms reuse the Soldier’s skinned arm mesh and authored finger pose. `FirstPersonArms` crops torso-connected shoulder triangles and solves weapon-specific arm poses; both existing weapons attach to the right-hand socket. The camera-relative parent carries arms, weapons and muzzle effects together through aiming, recoil, sprinting and reload motion. Reloads currently use the existing whole-rig motion, not a separate magazine-handling animation.
+
+## Deploy to Vercel
+
+Import this repository into Vercel with its root directory set to the repository root. The checked-in `vercel.json` selects the **Other** framework preset, runs `npm ci` and `npm run build:vercel`, and publishes `dist/client`. Use Node.js 22.x (22.13 or newer). No application environment variables or Cloudflare bindings are required for this static game.
+
+`build:vercel` enables Vinext's static export and omits the Cloudflare/Sites build plugins. The exported HTML, JavaScript, fonts, and all three GLB models are served directly from Vercel. Keep the `public/models` files in the deployed repository. The default `npm run build`, development server, and existing Sites configuration retain their previous behavior.
+
+To verify locally, run `npm run build:vercel` and serve **dist/client** using a static HTTP server. A successful local export verifies the build artifact; a live Vercel deployment still needs to be created in your account. Configuration reference: https://vercel.com/docs/project-configuration.
