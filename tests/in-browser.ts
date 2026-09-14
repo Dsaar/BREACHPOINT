@@ -335,8 +335,11 @@ export function validateGame(g: Game) {
       g.health === 100 && g.enemies!.alive === 6 && g.weapon.ammo === 30,
       'Full round reset',
     );
-    g.finish('STATION SECURED');
-    check(g.ended === 'STATION SECURED', 'Victory state presentation');
+    g.finish('MISSION COMPLETE');
+    check(
+      g.ended === 'MISSION COMPLETE',
+      'Victory state presentation (without recording incomplete objectives)',
+    );
     return { passed: passed.length, checks: passed };
   } finally {
     p.obstacles = obstacles;

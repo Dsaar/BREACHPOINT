@@ -1,9 +1,12 @@
 import * as THREE from 'three';
+import type { Spawn } from './Campaign';
 import { EnemyWeaponPose } from './EnemyWeaponPose';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { CharacterController, type Obstacle } from './CharacterController';
 type State = 'patrol' | 'investigate' | 'combat' | 'cover' | 'dead';
 export type Enemy = {
+  dormant: boolean;
+  wave: number;
   model: THREE.Object3D;
   controller: CharacterController;
   position: THREE.Vector3;
@@ -47,6 +50,14 @@ export class Enemies {
     public obstacles: Obstacle[],
     public targets: THREE.Object3D[],
     weaponModel?: THREE.Object3D,
+    spawns: readonly Spawn[] = [
+      [0, -5],
+      [-11, -7],
+      [12, 3],
+      [-10, 10],
+      [19, 4],
+      [0, -17],
+    ].map(([x, z]) => ({ position: [x, z], wave: 0 })),
   ) {
     for (let z = 0; z < 45; z++)
       for (let x = 0; x < 49; x++)
@@ -66,14 +77,8 @@ export class Enemies {
       emissive: 0xff2718,
       emissiveIntensity: 3,
     });
-    for (const [x, z] of [
-      [0, -5],
-      [-11, -7],
-      [12, 3],
-      [-10, 10],
-      [19, 4],
-      [0, -17],
-    ]) {
+    for (const spawn of spawns) {
+      const [x, z] = spawn.position;
       const model = clone(sourceModel);
       model.traverse((o) => {
         o.layers.set(0);
@@ -83,6 +88,7 @@ export class Enemies {
         }
       });
       scene.add(model);
+      model.visible = spawn.wave === 0;
       const beacon = new THREE.Mesh(geometry, beaconMat);
       beacon.position.set(
         0.27 / model.scale.x,
@@ -95,6 +101,8 @@ export class Enemies {
       controller.position.set(x, 0, z);
       controller.radius = 0.42;
       this.enemies.push({
+        dormant: spawn.wave !== 0,
+        wave: spawn.wave,
         model,
         controller,
         position: controller.position,
@@ -160,7 +168,20 @@ export class Enemies {
     };
   }
   get alive() {
-    return this.enemies.filter((e) => e.health > 0).length;
+    return this.enemies.filter((e) => e.health > 0 && !e.dormant).length;
+  }
+  activateWave(wave: number, target?: THREE.Vector3) {
+    for (const e of this.enemies)
+      if (e.wave === wave && e.dormant) {
+        e.dormant = false;
+        e.model.visible = true;
+        e.state = 'investigate';
+        if (target) {
+          e.goal.copy(target);
+          e.lastSeen.copy(target);
+        }
+        e.timer = 20;
+      }
   }
   reset() {
     for (const e of this.enemies) {
@@ -174,6 +195,8 @@ export class Enemies {
       e.repath = 0;
       e.visible = false;
       e.sightTimer = this.enemies.indexOf(e) * 0.025;
+      e.dormant = e.wave !== 0;
+      e.model.visible = !e.dormant;
       e.health = 100;
       e.state = 'patrol';
       e.position.copy(e.spawn);
@@ -196,6 +219,7 @@ export class Enemies {
   alert(position: THREE.Vector3) {
     for (const e of this.enemies)
       if (
+        !e.dormant &&
         e.health > 0 &&
         e.position.distanceTo(position) < 25 &&
         e.state === 'patrol'
@@ -301,6 +325,7 @@ export class Enemies {
     this.aim.copy(playerPosition);
     this.aim.y += 1.25;
     for (const e of this.enemies) {
+      if (e.dormant) continue;
       if (e.weapon) {
         e.weapon.flashTime = Math.max(0, e.weapon.flashTime - dt);
         e.weapon.muzzle.visible = e.health > 0 && e.weapon.flashTime > 0;
@@ -390,7 +415,7 @@ export class Enemies {
         }
       }
       for (const other of this.enemies) {
-        if (other === e || other.health <= 0) continue;
+        if (other === e || other.health <= 0 || other.dormant) continue;
         this.direction.subVectors(e.position, other.position);
         this.direction.y = 0;
         const gap = this.direction.length();
@@ -448,7 +473,7 @@ export class Enemies {
     let nearest: THREE.Intersection | undefined;
     let target: Enemy | undefined;
     for (const e of this.enemies) {
-      if (e.health <= 0) continue;
+      if (e.health <= 0 || e.dormant) continue;
       e.model.updateMatrixWorld(true);
       e.model.traverse((o) => {
         if ((o as THREE.SkinnedMesh).isSkinnedMesh)
@@ -472,7 +497,7 @@ export class Enemies {
     if (radius <= 0 || damage <= 0) return 0;
     let kills = 0;
     for (const e of this.enemies) {
-      if (e.health <= 0) continue;
+      if (e.health <= 0 || e.dormant) continue;
       this.eye.copy(e.position);
       this.eye.y += 0.9;
       const distance = this.eye.distanceTo(point);

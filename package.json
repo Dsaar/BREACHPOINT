@@ -11,7 +11,7 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint app lib/game scripts tests",
     "format": "oxfmt",
-    "test": "node tests/character.mjs && node tests/weapon.mjs && node tests/enemies.mjs",
+    "test": "node tests/character.mjs && node tests/weapon.mjs && node tests/enemies.mjs && node tests/campaign.mjs",
     "typecheck": "tsc --noEmit",
     "build:vercel": "BREACHPOINT_STATIC_EXPORT=1 vinext build"
   },

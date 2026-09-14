@@ -4,13 +4,26 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Enemies } from './Enemies';
 import { Weapon } from './Weapon';
 import { Effects } from './Effects';
-import { buildEnvironment } from './Environment';
+import { buildCampaignWorld, setMarker } from './CampaignWorld';
+import { campaign, type Mission } from './Campaign';
+import { MissionDirector } from './MissionDirector';
 import {
   CharacterController,
   makeClips,
   type Obstacle,
 } from './CharacterController';
 export type GameState = {
+  deployed?: boolean;
+  missionId?: number;
+  objective?: string;
+  objectiveStep?: number;
+  objectiveDistance?: number;
+  objectiveBearing?: number;
+  objectiveProgress?: number;
+  objectiveSeconds?: number;
+  prompt?: string;
+  radio?: string;
+  intel?: string;
   loaded: boolean;
   active: boolean;
   fps: number;
@@ -106,11 +119,21 @@ export class Game {
   ended = '';
   barrels: THREE.Mesh[] = [];
   trigger = false;
+  director: MissionDirector;
+  level: ReturnType<typeof buildCampaignWorld>;
+  intelRead = false;
+  intelHold = 0;
+  radioTime = 0;
+  missionReportTime = 0;
+  validationMode = false;
   shotRay = new THREE.Raycaster();
   constructor(
     public container: HTMLElement,
     public report: (s: Partial<GameState>) => void,
+    public mission: Mission = campaign[0],
+    public onComplete?: (id: number) => void,
   ) {
+    this.director = new MissionDirector(mission);
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -128,8 +151,8 @@ export class Game {
     room.dispose();
     pmrem.dispose();
     this.scene.environmentIntensity = 0.22;
-    this.scene.background = new THREE.Color('#18272e');
-    this.scene.fog = new THREE.FogExp2('#18272e', 0.021);
+    this.scene.background = new THREE.Color(mission.sky);
+    this.scene.fog = new THREE.FogExp2(mission.sky, mission.fog);
     this.scene.add(new THREE.HemisphereLight('#b4d5df', '#31312c', 1.4));
     const sun = new THREE.DirectionalLight('#ffdbab', 2.2);
     sun.position.set(-12, 22, -10);
@@ -145,7 +168,8 @@ export class Game {
     sun.shadow.bias = -0.0003;
     sun.shadow.camera.layers.enable(1);
     this.scene.add(sun);
-    const level = buildEnvironment(this.scene);
+    const level = (this.level = buildCampaignWorld(this.scene, mission));
+    setMarker(level.marker, this.director.objective.position);
     this.obstacles = level.obstacles;
     this.targets = level.targets;
     this.extraction = level.extraction;
@@ -244,6 +268,7 @@ export class Game {
         this.obstacles,
         this.targets,
         this.weapon.models[0],
+        this.mission.enemies,
       );
       model.traverse((o) => {
         const m = o as THREE.Mesh;
@@ -285,6 +310,8 @@ export class Game {
         loaded: true,
         clips: clips.map((c) => c.name),
         status: 'READY TO DEPLOY',
+        missionId: this.mission.id,
+        objective: this.director.objective.title,
       });
     } catch (e) {
       if (this.disposed) return;
@@ -298,7 +325,8 @@ export class Game {
     if (!this.loaded) return;
     if (this.ended) this.reset();
     if (!this.deployed) {
-      this.player.position.set(0, 0, 12);
+      this.player.position.set(this.mission.spawn[0], 0, this.mission.spawn[1]);
+      this.enterObjective();
       this.player.model.rotation.y = Math.PI;
       this.camera.layers.enable(1);
       this.deployed = true;
@@ -306,7 +334,7 @@ export class Game {
     this.active = true;
     this.player.enabled = true;
     this.weapon.unlockAudio();
-    this.report({ active: true });
+    this.report({ active: true, deployed: this.deployed });
     try {
       await this.renderer.domElement.requestPointerLock();
     } catch {
@@ -322,12 +350,13 @@ export class Game {
   };
   keydown = (e: KeyboardEvent) => {
     if (
+      this.active &&
       ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(
         e.code,
       )
     )
       e.preventDefault();
-    this.player?.keys.add(e.code);
+    if (this.active) this.player?.keys.add(e.code);
     if (this.active) {
       if (e.code === 'KeyR') this.weapon.reload();
       if (e.code === 'Digit1') this.weapon.switch(0);
@@ -410,7 +439,7 @@ export class Game {
           kills: this.kills,
           notice: this.enemies?.alive
             ? 'HOSTILE NEUTRALIZED'
-            : 'STATION CLEAR — REACH EXTRACTION',
+            : 'AREA CLEAR — PROCEED TO OBJECTIVE',
         });
       }
     } else if (wall) {
@@ -436,12 +465,19 @@ export class Game {
     if (!this.health) this.finish('OPERATOR DOWN');
   };
   finish(result: string) {
+    if (this.ended) return;
     this.ended = result;
     this.active = false;
     this.player.enabled = false;
     this.player.keys.clear();
     this.trigger = false;
     document.exitPointerLock();
+    if (
+      result === 'MISSION COMPLETE' &&
+      this.director.complete &&
+      !this.validationMode
+    )
+      this.onComplete?.(this.mission.id);
     this.report({
       active: false,
       ended: result,
@@ -455,7 +491,7 @@ export class Game {
     this.roundTime = 0;
     this.lastDamage = 0;
     this.ended = '';
-    this.player.position.set(0, 0, 12);
+    this.player.position.set(this.mission.spawn[0], 0, this.mission.spawn[1]);
     this.player.velocity.set(0, 0, 0);
     this.player.verticalSpeed = 0;
     this.player.yaw = 0;
@@ -473,6 +509,13 @@ export class Game {
     this.damageFlash = 0;
     this.hitFlash = 0;
     this.enemies?.reset();
+    this.director.reset();
+    this.intelRead = false;
+    this.intelHold = 0;
+    this.level.accent.emissiveIntensity = 2;
+    this.level.light.intensity = 35;
+    this.scene.fog = new THREE.FogExp2(this.mission.sky, this.mission.fog);
+    this.enterObjective();
     for (const barrel of this.barrels) {
       barrel.visible = true;
       if (!this.targets.includes(barrel)) this.targets.push(barrel);
@@ -482,6 +525,7 @@ export class Game {
       kills: 0,
       ended: '',
       notice: '',
+      intel: '',
       weapon: this.weapon.name,
       ammo: this.weapon.ammo,
       reserve: this.weapon.reserve,
@@ -503,6 +547,120 @@ export class Game {
     this.report({ kills: this.kills });
   }
 
+  enterObjective() {
+    const objective = this.director.objective;
+    if (objective.wave !== undefined)
+      this.enemies?.activateWave(objective.wave, this.player.position);
+    setMarker(this.level.marker, objective.position);
+    this.radioTime = 18;
+    if (objective.event === 'blackout') this.level.light.intensity = 4;
+    if (objective.event === 'overload') {
+      this.scene.fog = new THREE.FogExp2('#492b35', this.mission.fog);
+      this.level.accent.emissiveIntensity = 5;
+      this.effects.spawn(new THREE.Vector3(0, 7, -8), '#ffad70', 60, 9);
+      this.weapon.sound('explosion');
+    }
+    if (objective.event === 'seal') {
+      this.level.accent.emissiveIntensity = 0.15;
+      this.level.light.intensity = 8;
+      this.scene.fog = new THREE.FogExp2(
+        this.mission.sky,
+        this.mission.fog * 0.5,
+      );
+    }
+    // Consoles carry supplies; each stage replenishes reserve once, never per frame.
+    if (this.director.index > 0) {
+      this.weapon.reserves[0] = Math.max(this.weapon.reserves[0], 120);
+      this.weapon.reserves[1] = Math.max(this.weapon.reserves[1], 36);
+    }
+    this.report({
+      objective: objective.title,
+      objectiveStep: this.director.index + 1,
+      radio: objective.radio,
+    });
+  }
+  updateMission(dt: number) {
+    const position: [number, number] = [
+      this.player.position.x,
+      this.player.position.z,
+    ];
+    const objective = this.director.objective;
+    const near = this.director.distance(position);
+    const interact = this.player.keys.has('KeyE');
+    const alive = this.enemies?.alive ?? 0;
+    if (this.director.update(dt, position, alive, interact)) {
+      if (this.director.complete) {
+        this.finish('MISSION COMPLETE');
+        return;
+      }
+      this.enterObjective();
+    }
+    this.radioTime = Math.max(0, this.radioTime - dt);
+    const intelNear =
+      Math.hypot(
+        position[0] - this.mission.intel.position[0],
+        position[1] - this.mission.intel.position[1],
+      ) < 2.5;
+    this.intelHold = intelNear && interact ? this.intelHold + dt : 0;
+    if (!this.intelRead && this.intelHold > 1) {
+      this.intelRead = true;
+      this.radioTime = 20;
+      this.report({
+        intel: this.mission.intel.title,
+        radio: this.mission.intel.text,
+      });
+    }
+    for (const hazard of this.level.hazards) {
+      const phase = this.roundTime % hazard.definition.period;
+      const hot =
+        phase > hazard.definition.period * 0.55 &&
+        this.director.objective.event !== 'seal';
+      hazard.material.color.set(hot ? '#ff543d' : '#ffca69');
+      hazard.material.opacity = hot ? 0.65 : 0.15 + Math.sin(phase * 5) * 0.08;
+      if (
+        hot &&
+        Math.hypot(
+          position[0] - hazard.definition.position[0],
+          position[1] - hazard.definition.position[1],
+        ) < hazard.definition.radius &&
+        this.player.position.y < 0.5
+      )
+        this.damage(18 * dt);
+    }
+    this.missionReportTime -= dt;
+    if (this.missionReportTime > 0) return;
+    this.missionReportTime = 0.15;
+    this.report({
+      objectiveDistance: Math.round(near),
+      objectiveBearing:
+        ((Math.atan2(
+          objective.position[0] - position[0],
+          position[1] - objective.position[1],
+        ) +
+          this.player.yaw) *
+          180) /
+        Math.PI,
+      objectiveProgress: Math.min(
+        this.director.progress,
+        objective.seconds ?? 0,
+      ),
+      objectiveSeconds: objective.seconds ?? 0,
+      prompt:
+        intelNear && !this.intelRead
+          ? 'Hold E · recover field record'
+          : near < 2.5 && objective.kind === 'interact'
+            ? alive
+              ? 'Secure the area before completing the terminal'
+              : 'Hold E · operate terminal'
+            : objective.kind === 'defend'
+              ? near < 6
+                ? 'Uplink active · eliminate all reinforcements'
+                : 'Return to the marked field to continue the uplink'
+              : '',
+      ...(this.radioTime === 0 ? { radio: '' } : {}),
+    });
+  }
+
   blur = () => {
     this.player?.keys.clear();
     this.trigger = false;
@@ -515,7 +673,8 @@ export class Game {
     }
   };
   lockchange = () => {
-    this.active = document.pointerLockElement === this.renderer.domElement;
+    this.active =
+      !this.ended && document.pointerLockElement === this.renderer.domElement;
     if (this.player) {
       this.player.enabled = this.active;
       this.player.keys.clear();
@@ -551,11 +710,7 @@ export class Game {
         this.enemies?.update(dt, this.player.position, true, this.damage);
         if (this.health < 100 && this.roundTime - this.lastDamage > 8)
           this.health = Math.min(100, this.health + dt * 4);
-        if (
-          this.enemies?.alive === 0 &&
-          this.player.position.distanceTo(this.extraction) < 2.5
-        )
-          this.finish('STATION SECURED');
+        if (this.active) this.updateMission(dt);
       }
       if (this.active && this.trigger) this.fire();
       this.weapon.group.visible = this.active && !this.player.thirdPerson;
@@ -604,6 +759,7 @@ export class Game {
       this.camera.position.set(0, 1.5, 12);
       this.camera.rotation.set(-0.04, 0, 0);
     }
+    this.level.animate(this.roundTime, this.director.objective.event);
     this.renderer.render(this.scene, this.camera);
     this.frames++;
     this.elapsed += (now - this.frameTime) / 1000;

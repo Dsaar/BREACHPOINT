@@ -369,3 +369,331 @@ main:has(.menu) footer,
 main:has(.menu) .notice {
   display: none;
 }
+
+/* Black Tide operation board: mission silhouettes remain visible while locked. */
+.campaign-menu {
+  position: absolute;
+  inset: 110px 42px 42px;
+  overflow: auto;
+  z-index: 3;
+  padding: 0 3px 24px;
+}
+.campaign-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 24px;
+}
+.campaign-heading h1 {
+  font-size: clamp(34px, 4vw, 58px);
+  letter-spacing: -2px;
+  line-height: 1;
+  margin: 8px 0;
+  font-weight: 850;
+}
+.campaign-heading h1 span {
+  color: #c2d654;
+}
+.campaign-heading p {
+  text-align: right;
+  font: 14px monospace;
+  color: #d6e2dd;
+  line-height: 1.8;
+}
+.campaign-heading small {
+  color: #9db4bb;
+  font-size: 13px;
+}
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.mission-card {
+  text-align: left;
+  color: #e6efed;
+  border: 1px solid #536670;
+  background: #0c1b22ed;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+  overflow: hidden;
+}
+.mission-card:not(:disabled):hover,
+.mission-card:focus-visible {
+  border-color: var(--mission-color);
+  transform: translateY(-3px);
+  outline: 2px solid var(--mission-color);
+  outline-offset: 2px;
+}
+.mission-card:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.35);
+  color: #9cabb0;
+}
+.mission-card:disabled .map-preview {
+  opacity: 0.55;
+}
+.map-preview {
+  height: 112px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse at 65% 80%,
+      color-mix(in srgb, var(--mission-color) 35%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #193440, #050b16);
+  border-bottom: 1px solid #344953;
+}
+.map-preview:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #0002 3px 4px);
+  pointer-events: none;
+}
+.map-preview b {
+  position: absolute;
+  left: 16px;
+  top: 8px;
+  font: 38px monospace;
+  color: var(--mission-color);
+  opacity: 0.7;
+}
+.map-preview small {
+  position: absolute;
+  left: 16px;
+  bottom: 10px;
+  font: 12px monospace;
+  color: #e0eae8;
+  z-index: 1;
+}
+.map-landmark {
+  position: absolute;
+  right: 18%;
+  bottom: 0;
+  width: 90px;
+  height: 82px;
+  background: #101d28;
+  border-top: 2px solid var(--mission-color);
+  box-shadow:
+    30px 20px 0 #162a35,
+    -40px 36px 0 #21333d;
+}
+.map-spillway .map-landmark {
+  width: 150px;
+  height: 14px;
+  bottom: 60px;
+  transform: skewY(-12deg);
+  box-shadow:
+    0 24px 0 #1a3c49,
+    0 48px 0 #27505c;
+}
+.map-archive .map-landmark {
+  width: 25px;
+  height: 90px;
+  border: 1px solid var(--mission-color);
+  box-shadow:
+    40px 0 0 #344256,
+    -40px 0 0 #344256;
+}
+.map-wreck .map-landmark {
+  width: 160px;
+  height: 35px;
+  bottom: 35px;
+  transform: rotate(-22deg);
+  border-radius: 50% 8% 8% 30%;
+  box-shadow: 20px 20px 0 #482f32;
+}
+.map-foundry .map-landmark {
+  width: 32px;
+  height: 80px;
+  box-shadow:
+    55px 10px 0 #403b30,
+    -55px 10px 0 #403b30;
+}
+.map-breach .map-landmark {
+  width: 88px;
+  height: 88px;
+  bottom: 12px;
+  border: 3px solid var(--mission-color);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--mission-color),
+    #184052 25%,
+    #060d19 28%
+  );
+  box-shadow: 0 0 30px #72f3d333;
+}
+.mission-card-body {
+  padding: 15px 18px 17px;
+}
+.mission-card h2 {
+  font-size: 22px;
+  margin: 5px 0 8px;
+  font-weight: 750;
+}
+.mission-card p {
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 42px;
+  margin: 0 0 14px;
+  color: #b5c7cd;
+}
+.mission-card strong {
+  font: 12px monospace;
+  color: var(--mission-color);
+}
+.mission-card .eyebrow {
+  font-size: 12px;
+}
+main:has(.campaign-menu) .vignette {
+  background: #071219b5;
+}
+main:has(.campaign-menu) footer,
+main:has(.campaign-menu) .notice {
+  display: none;
+}
+.briefing-menu {
+  top: 145px;
+  bottom: 40px;
+  overflow: auto;
+  width: min(650px, 85vw);
+}
+.briefing-menu h1 {
+  font-size: clamp(40px, 4.6vw, 68px);
+}
+.briefing-menu p {
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 590px;
+}
+.briefing-menu button {
+  margin-bottom: 10px;
+  max-width: 100%;
+}
+.briefing-menu .secondary-button {
+  background: #10232b;
+  color: #cbdcdd;
+  border: 1px solid #567078;
+}
+.radio {
+  position: absolute;
+  bottom: 145px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, 80vw);
+  padding: 14px 20px;
+  background: #08151eea;
+  border-left: 2px solid #bace67;
+  pointer-events: none;
+}
+.radio p {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  color: #e3ece9;
+}
+.objective {
+  max-width: min(610px, 80vw);
+}
+.objective p {
+  font-size: 14px;
+}
+.objective progress {
+  width: 240px;
+  accent-color: #c2d654;
+  height: 5px;
+}
+.save-warning {
+  color: #ffd19a;
+  font-size: 14px;
+}
+.campaign-victory {
+  color: #c2d654;
+}
+@media (max-width: 950px) {
+  .mission-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .campaign-menu {
+    inset: 100px 22px 40px;
+  }
+  .campaign-heading {
+    align-items: flex-start;
+  }
+  .radio {
+    bottom: 130px;
+  }
+}
+@media (max-width: 580px) {
+  .mission-grid {
+    grid-template-columns: 1fr;
+  }
+  .campaign-heading {
+    display: block;
+  }
+  .campaign-heading p {
+    text-align: left;
+  }
+  .briefing-menu {
+    left: 22px;
+    top: 115px;
+  }
+  .radio p {
+    font-size: 14px;
+  }
+}
+.objective-bearing {
+  display: inline-block;
+  font-size: 22px;
+  margin-right: 9px;
+  color: #c2d654;
+}
+@media (min-width: 951px) and (max-height: 850px) {
+  .campaign-menu {
+    inset: 102px 42px 30px;
+    padding-bottom: 8px;
+  }
+  .campaign-heading {
+    margin-bottom: 12px;
+  }
+  .campaign-heading h1 {
+    font-size: 36px;
+    margin: 5px 0;
+  }
+  .campaign-heading p {
+    margin: 0;
+  }
+  .mission-grid {
+    gap: 12px;
+  }
+  .map-preview {
+    height: 64px;
+  }
+  .map-preview b {
+    font-size: 27px;
+    top: 3px;
+  }
+  .map-preview small {
+    bottom: 5px;
+  }
+  .mission-card-body {
+    padding: 10px 16px;
+  }
+  .mission-card h2 {
+    font-size: 20px;
+    margin: 3px 0 5px;
+  }
+  .mission-card p {
+    min-height: 38px;
+    margin-bottom: 7px;
+    line-height: 1.35;
+  }
+}
